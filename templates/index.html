@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <style>
+    .container {
+      display: flex;
+    }
+
+    .chatbox {
+      width: 60%;
+      margin-right: 20px;
+    }
+
+    .tweets {
+      width: 40%;
+    }
+
+    .scrollbox {
+      overflow-y: scroll;
+      max-height: 300px;
+      /* Adjust as needed */
+    }
+
+    .message,
+    .tweet {
+      /* Add dividers between messages and tweets */
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="chatbox">
+      <h1>Public Chat</h1>
+      <div id="chatbox" class="scrollbox">
+        {% for message in messages %}
+        <div class="message">
+          <p>{{ message['username'] }}: {{ message['content'] }}</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <input type="text" id="message_input" placeholder="Enter message">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <div class="tweets">
+      <h2>Tweets</h2>
+      <div id="tweets_list" class="scrollbox">
+        {% for tweet in tweets %}
+        <div class="tweet">
+          <p>{{ tweet['username'] }}: {{ tweet['content'] }}</p>
+          <span id="likes-{{ tweet.id }}">{{ tweet.likes }}</span> Likes
+          <button onclick="likeTweet({{ tweet.id }})">Like</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <h2>Tweet</h2>
+  <input type="text" id="tweet_input" placeholder="Enter tweet">
+  <button onclick="sendTweet()">Tweet</button>
+
+  <script>
+    const socket = io();
+    const chatbox = document.getElementById('chatbox');
+    const tweetsList = document.getElementById('tweets_list');
+
+    function sendMessage() {
+      const messageInput = document.getElementById('message_input');
+      const message = messageInput.value;
+      if (message.trim() !== '') {
+        socket.emit('message', {message: message});
+        messageInput.value = '';
+      }
+    }
+
+    function sendTweet() {
+      const tweetInput = document.getElementById('tweet_input');
+      const tweet = tweetInput.value;
+
+      if (tweet.trim() !== '') {
+        socket.emit('tweet', {tweet: tweet});
+        tweetInput.value = '';
+      }
+    }
+
+    function likeTweet(tweetId) {
+      socket.emit('like_tweet', {tweet_id: tweetId});
+    }
+
+    socket.on('message', (data) => {
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('message');
+      messageElement.innerHTML = `<p>${data.username}: ${data.message}</p>`;
+      chatbox.appendChild(messageElement);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    });
+
+    socket.on('tweet', (data) => {
+      const tweetElement = document.createElement('div');
+      tweetElement.classList.add('tweet');
+      // Corrected the innerHTML to properly display the tweet content and like button
+      tweetElement.innerHTML = `<p>${data.username}: ${data.tweet}</p> <span id="likes-${data.tweet_id}">0</span> Likes <button onclick="likeTweet(${data.tweet_id})">Like</button>`;
+      tweetsList.appendChild(tweetElement);
+      tweetsList.scrollTop = tweetsList.scrollHeight;
+    });
+
+    socket.on('update_like_count', (data) => {
+      const likesSpan = document.getElementById(`likes-${data.tweet_id}`);
+      if (likesSpan) {
+        likesSpan.textContent = data.likes;
+      }
+    });
+  </script>
+</body>
+</html>
